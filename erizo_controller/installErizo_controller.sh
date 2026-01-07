@@ -27,6 +27,11 @@ echo [erizo_controller] Done, node_modules installed
 
 cd ./erizoClient/
 
+if [ -z "$NODE_OPTIONS" ]; then
+  NODE_OPTIONS="--openssl-legacy-provider"
+  export NODE_OPTIONS
+fi
+
 $LICODE_ROOT/node_modules/.bin/gulp erizo
 
 check_result $?
