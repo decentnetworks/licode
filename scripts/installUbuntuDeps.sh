@@ -21,7 +21,7 @@ check_version(){
   then
      gcc_version=10
   else
-     gcc_version=5
+     gcc_version=13
   fi
 }
 
@@ -115,12 +115,17 @@ install_mongodb(){
   fi
 }
 
+
 install_conan(){
-  sudo pip3 install conan==1.62.0
+  python3 -m venv .venv || true
+  source .venv/bin/activate
+  pip install --upgrade pip
+  pip install conan==1.62.0
 }
 
 install_cpplint(){
-   sudo pip3 install cpplint==1.5.4
+  source .venv/bin/activate
+  pip install cpplint==1.5.4
 }
 
 
@@ -283,7 +288,7 @@ mkdir -p $PREFIX_DIR
 
 check_sudo
 install_apt_deps
-install_mongodb
+#install_mongodb
 install_conan
 check_proxy
 install_openssl
