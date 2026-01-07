@@ -13,6 +13,10 @@ PREFIX_DIR=$LIB_DIR/build/
 NVM_CHECK="$PATHNAME"/checkNvm.sh
 FAST_MAKE=''
 
+# Use a repo-local Conan home to avoid permission issues on locked-down systems.
+export CONAN_USER_HOME=${CONAN_USER_HOME:-$ROOT/.conan}
+mkdir -p "$CONAN_USER_HOME"
+
 NUM_CORES=1;
 if [ "$(uname)" == "Darwin" ]; then
   NUM_CORES=$(sysctl -n hw.ncpu);

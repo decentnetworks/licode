@@ -31,13 +31,17 @@ ExternalOutput::ExternalOutput(std::shared_ptr<Worker> worker, const std::string
     first_data_received_{}, video_offset_ms_{-1}, audio_offset_ms_{-1},
     need_to_send_fir_{true}, rtp_mappings_{rtp_mappings}, hasAudio_{hasAudio}, hasVideo_{hasVideo},
     video_codec_{AV_CODEC_ID_NONE}, audio_codec_{AV_CODEC_ID_NONE},
-    pipeline_initialized_{false}, ext_processor_{ext_mappings}
+    pipeline_initialized_{false}, ext_processor_{ext_mappings}, output_url_{output_url}
      {
-  ELOG_DEBUG("Creating output to %s", output_url.c_str());
+  ELOG_DEBUG("Creating output to %s", output_url_.c_str());
   ELOG_DEBUG("Has audio %d has video %d", hasAudio, hasVideo);
   // TODO(pedro): these should really only be called once per application run
+#if LIBAVFORMAT_VERSION_MAJOR < 58
   av_register_all();
+#endif
+#if LIBAVCODEC_VERSION_MAJOR < 58
   avcodec_register_all();
+#endif
 
   stats_ = std::make_shared<Stats>();
   quality_manager_ = std::make_shared<QualityManager>();
@@ -55,16 +59,9 @@ ExternalOutput::ExternalOutput(std::shared_ptr<Worker> worker, const std::string
     }
   }
 
-  context_ = avformat_alloc_context();
-  if (context_ == nullptr) {
-    ELOG_ERROR("Error allocating memory for IO context");
-  } else {
-    output_url.copy(context_->filename, sizeof(context_->filename), 0);
-
-    context_->oformat = av_guess_format(nullptr,  context_->filename, nullptr);
-    if (!context_->oformat) {
-      ELOG_ERROR("Error guessing format %s", context_->filename);
-    }
+  if (avformat_alloc_output_context2(&context_, nullptr, nullptr, output_url_.c_str()) < 0 ||
+      context_ == nullptr) {
+    ELOG_ERROR("Error allocating memory for output context");
   }
 
   // Set a fixed extension map to parse video orientation
@@ -116,6 +113,7 @@ void ExternalOutput::syncClose() {
       av_write_trailer(context_);
   }
 
+#if LIBAVFORMAT_VERSION_MAJOR < 58
   if (video_stream_ && video_stream_->codec != nullptr) {
       avcodec_close(video_stream_->codec);
   }
@@ -123,6 +121,7 @@ void ExternalOutput::syncClose() {
   if (audio_stream_ && audio_stream_->codec != nullptr) {
       avcodec_close(audio_stream_->codec);
   }
+#endif
 
   if (context_ != nullptr) {
       avio_close(context_->pb);
@@ -191,7 +190,7 @@ void ExternalOutput::writeAudioData(char* buf, int len) {
   }
 
   long long timestamp_to_write = (current_timestamp - first_audio_timestamp_) /  // NOLINT
-                                    (audio_stream_->codec->sample_rate / audio_stream_->time_base.den);
+                                    (audio_map_.clock_rate / audio_stream_->time_base.den);
   // generally 48000 / 1000 for the denominator portion, at least for opus
   // Adjust for our start time offset
 
@@ -380,7 +379,7 @@ bool ExternalOutput::initContext() {
   }
 
   if (hasVideo_ && video_stream_ == nullptr) {
-    AVCodec* video_codec = avcodec_find_encoder(video_codec_);
+    const AVCodec* video_codec = avcodec_find_encoder(video_codec_);
     if (video_codec == nullptr) {
       ELOG_ERROR("Could not find video codec");
       return false;
@@ -390,23 +389,33 @@ bool ExternalOutput::initContext() {
     video_queue_.setTimebase(video_map_.clock_rate);
     video_stream_ = avformat_new_stream(context_, video_codec);
     video_stream_->id = 0;
+#if LIBAVFORMAT_VERSION_MAJOR >= 58
+    video_stream_->codecpar->codec_id = video_codec_;
+    video_stream_->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
+    video_stream_->codecpar->width = 640;
+    video_stream_->codecpar->height = 480;
+    video_stream_->codecpar->format = AV_PIX_FMT_YUV420P;
+#else
     video_stream_->codec->codec_id = video_codec_;
     video_stream_->codec->width = 640;
     video_stream_->codec->height = 480;
+#endif
     video_stream_->time_base = (AVRational) { 1, 30 };
     video_stream_->metadata = genVideoMetadata();
     // A decent guess here suffices; if processing the file with ffmpeg,
     // use -vsync 0 to force it not to duplicate frames.
+    #if LIBAVFORMAT_VERSION_MAJOR < 58
     video_stream_->codec->pix_fmt = PIX_FMT_YUV420P;
     if (context_->oformat->flags & AVFMT_GLOBALHEADER) {
       video_stream_->codec->flags |= CODEC_FLAG_GLOBAL_HEADER;
     }
     context_->oformat->flags |= AVFMT_VARIABLE_FPS;
+    #endif
     context_->streams[0] = video_stream_;
   }
 
   if (hasAudio_ && audio_stream_ == nullptr) {
-    AVCodec* audio_codec = avcodec_find_encoder(audio_codec_);
+    const AVCodec* audio_codec = avcodec_find_encoder(audio_codec_);
     if (audio_codec == nullptr) {
       ELOG_ERROR("Could not find audio codec");
       return false;
@@ -414,27 +423,37 @@ bool ExternalOutput::initContext() {
     init_audio = true;
     audio_stream_ = avformat_new_stream(context_, audio_codec);
     audio_stream_->id = 1;
+#if LIBAVFORMAT_VERSION_MAJOR >= 58
+    audio_stream_->codecpar->codec_id = audio_codec_;
+    audio_stream_->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
+    audio_stream_->codecpar->sample_rate = audio_map_.clock_rate;
+    audio_stream_->codecpar->channels = audio_map_.channels;
+    audio_stream_->codecpar->channel_layout = av_get_default_channel_layout(audio_map_.channels);
+#else
     audio_stream_->codec->codec_id = audio_codec_;
     audio_stream_->codec->sample_rate = audio_map_.clock_rate;
-    audio_stream_->time_base = (AVRational) { 1, audio_stream_->codec->sample_rate };
     audio_stream_->codec->channels = audio_map_.channels;
     if (context_->oformat->flags & AVFMT_GLOBALHEADER) {
       audio_stream_->codec->flags |= CODEC_FLAG_GLOBAL_HEADER;
     }
+#endif
+    audio_stream_->time_base = (AVRational) { 1, audio_map_.clock_rate };
 
     if (!hasVideo_) {
         // To avoid the following matroska errors, we add CODEC_FLAG_GLOBAL_HEADER...
         // - Codec for stream 0 does not use global headers but container format requires global headers
         // - Only audio, video, and subtitles are supported for Matroska.
         video_stream_ = avformat_new_stream(context_, nullptr);
+        #if LIBAVFORMAT_VERSION_MAJOR < 58
         video_stream_->codec->flags |= CODEC_FLAG_GLOBAL_HEADER;
+        #endif
         context_->streams[0] = video_stream_;
     }
     context_->streams[1] = audio_stream_;
   }
 
   if ( init_audio || init_video ) {
-    if (avio_open(&context_->pb, context_->filename, AVIO_FLAG_WRITE) < 0) {
+    if (avio_open(&context_->pb, output_url_.c_str(), AVIO_FLAG_WRITE) < 0) {
       ELOG_ERROR("Error opening output file");
       return false;
     }
@@ -471,7 +490,7 @@ void ExternalOutput::queueData(char* buffer, int length, packetType type) {
     uint8_t payloadtype = h->getPayloadType();
     if (video_offset_ms_ == -1) {
       video_offset_ms_ = ClockUtils::durationToMs(clock::now() - first_data_received_);
-      ELOG_DEBUG("File %s, video offset msec: %llu", context_->filename, video_offset_ms_);
+      ELOG_DEBUG("File %s, video offset msec: %llu", output_url_.c_str(), video_offset_ms_);
       video_queue_.setTimebase(video_maps_[payloadtype].clock_rate);
     }
 
@@ -507,7 +526,7 @@ void ExternalOutput::queueData(char* buffer, int length, packetType type) {
   } else {
     if (audio_offset_ms_ == -1) {
       audio_offset_ms_ = ClockUtils::durationToMs(clock::now() - first_data_received_);
-      ELOG_DEBUG("File %s, audio offset msec: %llu", context_->filename, audio_offset_ms_);
+      ELOG_DEBUG("File %s, audio offset msec: %llu", output_url_.c_str(), audio_offset_ms_);
 
       // Let's also take a moment to set our audio queue timebase.
       RtpHeader* h = reinterpret_cast<RtpHeader*>(buffer);
@@ -593,4 +612,3 @@ AVDictionary* ExternalOutput::genVideoMetadata() {
     return dict;
 }
 }  // namespace erizo
-

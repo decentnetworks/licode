@@ -2,6 +2,10 @@
 #define ERIZO_SRC_ERIZO_MEDIA_EXTERNALINPUT_H_
 
 #include <boost/scoped_ptr.hpp>
+extern "C" {
+#include <libavcodec/avcodec.h>
+}
+
 #include <boost/thread.hpp>
 
 #pragma GCC diagnostic push
@@ -12,6 +16,10 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/time.h>
+
+extern "C" {
+  struct AVCodecContext;
+}
 }
 
 #pragma GCC diagnostic pop

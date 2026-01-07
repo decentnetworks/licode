@@ -6,6 +6,7 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/channel_layout.h>
 }
 
 #include <string>
@@ -66,6 +67,7 @@ class ExternalOutput : public MediaSink, public RawDataReceiver, public Feedback
   boost::condition_variable cond_;
   AVStream *video_stream_, *audio_stream_;
   AVFormatContext *context_;
+  std::string output_url_;
   uint32_t video_source_ssrc_;
   std::unique_ptr<Depacketizer> depacketizer_;
 
@@ -163,4 +165,3 @@ class ExternalOuputWriter : public OutboundHandler {
 
 }  // namespace erizo
 #endif  // ERIZO_SRC_ERIZO_MEDIA_EXTERNALOUTPUT_H_
-
