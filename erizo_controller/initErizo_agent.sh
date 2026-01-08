@@ -15,8 +15,8 @@ export LD_LIBRARY_PATH="$LICODE_ROOT/build/libdeps/build/lib"
 cd $ROOT/erizoAgent
 nvm use
 # Start Erizo Agent with PM2
-echo $ROOT/node_modules/.bin/pm2 start nuve.js --cwd .
-$ROOT/node_modules/.bin/pm2 start erizoAgent.js --cwd .
+echo $LICODE_ROOT/node_modules/.bin/pm2 start nuve.js --cwd .
+$LICODE_ROOT/node_modules/.bin/pm2 start erizoAgent.js --cwd .
 #node erizoAgent.js $* &
 
 cd $CURRENT_DIR
