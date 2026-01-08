@@ -21,7 +21,7 @@
         }, { # OS!="mac"
           'cflags!' : ['-fno-exceptions'],
           'cflags' : ['-D__STDC_CONSTANT_MACROS'],
-          'cflags_cc' : ['-Werror', '-Wall', '-Wno-error=cast-function-type', '-Wno-error=ignored-qualifiers', '-Wno-error=attributes', '-O3', '-g', '-std=c++17', '-fexceptions', '-DBOOST_THREAD_PROVIDES_FUTURE', '-DBOOST_THREAD_PROVIDES_FUTURE_CONTINUATION', '-DBOOST_THREAD_PROVIDES_FUTURE_WHEN_ALL_WHEN_ANY', '-DWEBRTC_POSIX', '@$(ERIZO_HOME)/conanbuildinfo.args'],
+          'cflags_cc' : ['-Werror', '-Wall', '-Wno-error=cast-function-type', '-Wno-error=ignored-qualifiers', '-Wno-error=attributes', '-Wno-error=deprecated-declarations', '-O3', '-g', '-std=c++17', '-fexceptions', '-DBOOST_THREAD_PROVIDES_FUTURE', '-DBOOST_THREAD_PROVIDES_FUTURE_CONTINUATION', '-DBOOST_THREAD_PROVIDES_FUTURE_WHEN_ALL_WHEN_ANY', '-DWEBRTC_POSIX', '@$(ERIZO_HOME)/conanbuildinfo.args'],
           'cflags_cc!' : ['-fno-exceptions'],
           'cflags_cc!' : ['-fno-rtti']
         }],
@@ -47,7 +47,7 @@
               }, { # OS!="mac"
                 'cflags!' : ['-fno-exceptions'],
                 'cflags' : ['-D__STDC_CONSTANT_MACROS'],
-                'cflags_cc' : ['-Werror', '-Wall', '-Wno-error=cast-function-type', '-Wno-error=ignored-qualifiers', '-Wno-error=attributes', '-g' , '-std=c++17', '-fexceptions', '-DBOOST_THREAD_PROVIDES_FUTURE', '-DBOOST_THREAD_PROVIDES_FUTURE_CONTINUATION', '-DBOOST_THREAD_PROVIDES_FUTURE_WHEN_ALL_WHEN_ANY', '-DWEBRTC_POSIX', '@$(ERIZO_HOME)/conanbuildinfo.args'],
+                'cflags_cc' : ['-Werror', '-Wall', '-Wno-error=cast-function-type', '-Wno-error=ignored-qualifiers', '-Wno-error=attributes', '-Wno-error=deprecated-declarations', '-g' , '-std=c++17', '-fexceptions', '-DBOOST_THREAD_PROVIDES_FUTURE', '-DBOOST_THREAD_PROVIDES_FUTURE_CONTINUATION', '-DBOOST_THREAD_PROVIDES_FUTURE_WHEN_ALL_WHEN_ANY', '-DWEBRTC_POSIX', '@$(ERIZO_HOME)/conanbuildinfo.args'],
                 'cflags_cc!' : ['-fno-exceptions'],
                 'cflags_cc!' : ['-fno-rtti']
               }],

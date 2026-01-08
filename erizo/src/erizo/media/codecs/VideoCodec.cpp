@@ -24,7 +24,9 @@ inline AVCodecID VideoCodecID2ffmpegDecoderID(VideoCodecID codec) {
 }
 
 VideoEncoder::VideoEncoder() {
+#if LIBAVCODEC_VERSION_MAJOR < 58
   avcodec_register_all();
+#endif
   vCoder = NULL;
   coder_context_ = NULL;
   cPicture = NULL;
@@ -59,7 +61,9 @@ int VideoEncoder::initEncoder(const VideoCodecInfo& info) {
   coder_context_->qmax = 40;  // rc_quantifiers
   coder_context_->profile = 3;
   // coder_context_->frame_skip_threshold = 30;
+#if LIBAVCODEC_VERSION_MAJOR < 59
   coder_context_->rc_buffer_aggressivity = 0.95;
+#endif
   // coder_context_->rc_buffer_size = coder_context_->bit_rate;
   // coder_context_->rc_initial_buffer_occupancy = coder_context_->bit_rate / 2;
   coder_context_->rc_initial_buffer_occupancy = 500;
@@ -70,7 +74,7 @@ int VideoEncoder::initEncoder(const VideoCodecInfo& info) {
   coder_context_->height = info.height;
   target_width_ = info.width;
   target_height_ = info.height;
-  coder_context_->pix_fmt = PIX_FMT_YUV420P;
+  coder_context_->pix_fmt = AV_PIX_FMT_YUV420P;
   coder_context_->time_base = (AVRational) {1, 90000};
 
   coder_context_->sample_aspect_ratio = (AVRational) { info.width, info.height };
@@ -133,7 +137,9 @@ void VideoEncoder::restartContext() {
   next_coder_context_->qmax = 40;  // rc_quantifiers
   next_coder_context_->profile = 3;
   // next_coder_context_->frame_skip_threshold = 30;
+#if LIBAVCODEC_VERSION_MAJOR < 59
   next_coder_context_->rc_buffer_aggressivity = 0.95;
+#endif
   // next_coder_context_->rc_buffer_size = next_coder_context_->bit_rate;
   // next_coder_context_->rc_initial_buffer_occupancy = next_coder_context_->bit_rate / 2;
   next_coder_context_->rc_initial_buffer_occupancy = 500;
@@ -142,7 +148,7 @@ void VideoEncoder::restartContext() {
 
   next_coder_context_->width = target_width_;
   next_coder_context_->height = target_height_;
-  next_coder_context_->pix_fmt = PIX_FMT_YUV420P;
+  next_coder_context_->pix_fmt = AV_PIX_FMT_YUV420P;
   next_coder_context_->time_base = (AVRational) {1, 90000};
 
   next_coder_context_->sample_aspect_ratio = (AVRational) { target_width_, target_height_ };
@@ -174,23 +180,41 @@ int VideoEncoder::encodeVideo(unsigned char* inBuffer, int inLength, unsigned ch
 
   AVPacket pkt;
   av_init_packet(&pkt);
-  pkt.data = outBuffer;
-  pkt.size = outLength;
+  pkt.data = nullptr;
+  pkt.size = 0;
 
   int ret = 0;
   int got_packet = 0;
+#if LIBAVCODEC_VERSION_MAJOR >= 57
+  ret = avcodec_send_frame(coder_context_, cPicture);
+  if (ret < 0) {
+    return ret;
+  }
+  ret = avcodec_receive_packet(coder_context_, &pkt);
+  if (ret == 0) {
+    got_packet = 1;
+  } else if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+    ret = 0;
+  }
+#else
+  pkt.data = outBuffer;
+  pkt.size = outLength;
   //    ELOG_DEBUG(
   //        "Before encoding inBufflen %d, size %d, codecontext width %d pkt->size%d",
   //        inLength, size, coder_context_->width, pkt.size);
   ret = avcodec_encode_video2(coder_context_, &pkt, cPicture, &got_packet);
-  //    ELOG_DEBUG("Encoded video size %u, ret %d, got_packet %d, pts %lld, dts %lld",
-  //        pkt.size, ret, got_packet, pkt.pts, pkt.dts);
-  if (!ret && got_packet && coder_context_->coded_frame) {
-    coder_context_->coded_frame->pts = pkt.pts;
-    coder_context_->coded_frame->key_frame =
-      !!(pkt.flags & AV_PKT_FLAG_KEY);
+#endif
+  if (got_packet) {
+    if (pkt.size > outLength) {
+      av_packet_unref(&pkt);
+      return -1;
+    }
+    memcpy(outBuffer, pkt.data, pkt.size);
+    av_packet_unref(&pkt);
+    return pkt.size;
   }
-  return ret ? ret : pkt.size;
+  av_packet_unref(&pkt);
+  return ret;
 }
 
 int VideoEncoder::closeEncoder() {
@@ -204,7 +228,9 @@ int VideoEncoder::closeEncoder() {
 
 
 VideoDecoder::VideoDecoder() {
+#if LIBAVCODEC_VERSION_MAJOR < 58
   avcodec_register_all();
+#endif
   vDecoder = NULL;
   vDecoderContext = NULL;
   dPicture = NULL;
@@ -283,10 +309,28 @@ int VideoDecoder::decodeVideo(unsigned char* inBuff, int inBuffLen,
 
   AVPacket avpkt;
   av_init_packet(&avpkt);
-
   avpkt.data = inBuff;
   avpkt.size = inBuffLen;
 
+#if LIBAVCODEC_VERSION_MAJOR >= 57
+  int ret = avcodec_send_packet(vDecoderContext, &avpkt);
+  if (ret < 0) {
+    ELOG_DEBUG("Error decoding video frame");
+    av_packet_unref(&avpkt);
+    return -1;
+  }
+  ret = avcodec_receive_frame(vDecoderContext, dPicture);
+  if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+    av_packet_unref(&avpkt);
+    return -1;
+  }
+  if (ret < 0) {
+    ELOG_DEBUG("Error decoding video frame");
+    av_packet_unref(&avpkt);
+    return -1;
+  }
+  *gotFrame = 1;
+#else
   int got_picture;
   int len;
 
@@ -296,6 +340,7 @@ int VideoDecoder::decodeVideo(unsigned char* inBuff, int inBuffLen,
 
     if (len < 0) {
       ELOG_DEBUG("Error decoding video frame");
+      av_packet_unref(&avpkt);
       return -1;
     }
 
@@ -308,8 +353,10 @@ int VideoDecoder::decodeVideo(unsigned char* inBuff, int inBuffLen,
   }
 
   if (!got_picture) {
+    av_packet_unref(&avpkt);
     return -1;
   }
+#endif
 
 decoding:
   int outSize = vDecoderContext->height * vDecoderContext->width;
@@ -354,7 +401,7 @@ decoding:
     cromV += dst_linesize;
     src += src_linesize;
   }
-  av_free_packet(&avpkt);
+  av_packet_unref(&avpkt);
 
   return outSize * 3 / 2;
 }

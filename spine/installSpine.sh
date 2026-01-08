@@ -21,6 +21,11 @@ echo [spine] Done, node_modules installed
 
 cd ../erizo_controller/erizoClient/
 
+if [ -z "$NODE_OPTIONS" ]; then
+  NODE_OPTIONS="--openssl-legacy-provider"
+  export NODE_OPTIONS
+fi
+
 $LICODE_ROOT/node_modules/.bin/gulp erizofc
 
 echo [spine] Done, erizofc.js compiled

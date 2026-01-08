@@ -1,6 +1,7 @@
 #include "media/ExternalInput.h"
 
 #include <boost/cstdint.hpp>
+#include <libavcodec/packet.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
 #include <libavutil/time.h>
@@ -27,7 +28,7 @@ ExternalInput::~ExternalInput() {
   thread_.join();
   if (needTranscoding_)
     encodeThread_.join();
-  av_free_packet(&avpacket_);
+  av_packet_unref(&avpacket_);
   if (context_ != NULL)
     avformat_free_context(context_);
   ELOG_DEBUG("ExternalInput closed");
@@ -35,8 +36,6 @@ ExternalInput::~ExternalInput() {
 
 int ExternalInput::init() {
   context_ = avformat_alloc_context();
-  av_register_all();
-  avcodec_register_all();
   avformat_network_init();
   // open rtsp
   av_init_packet(&avpacket_);
@@ -86,12 +85,12 @@ int ExternalInput::init() {
                audio_stream_index_, audio_st->time_base.num, audio_st->time_base.den);
     audio_time_base_ = audio_st->time_base.den;
     ELOG_DEBUG("Audio Time base %d", audio_time_base_);
-    if (audio_st->codec->codec_id == AV_CODEC_ID_PCM_MULAW) {
+    if (audio_st->codecpar->codec_id == AV_CODEC_ID_PCM_MULAW) {
       ELOG_DEBUG("PCM U8");
       om.audioCodec.sampleRate = 8000;
       om.audioCodec.codec = AUDIO_CODEC_PCM_U8;
       om.rtpAudioInfo.PT = PCMU_8000_PT;
-    } else if (audio_st->codec->codec_id == AV_CODEC_ID_OPUS) {
+    } else if (audio_st->codecpar->codec_id == AV_CODEC_ID_OPUS) {
       ELOG_DEBUG("OPUS");
       om.audioCodec.sampleRate = 48000;
       om.audioCodec.codec = AUDIO_CODEC_OPUS;
@@ -102,7 +101,7 @@ int ExternalInput::init() {
   }
 
 
-  if (st->codec->codec_id == AV_CODEC_ID_VP8 || !om.hasVideo) {
+  if (st->codecpar->codec_id == AV_CODEC_ID_VP8 || !om.hasVideo) {
     ELOG_DEBUG("No need for video transcoding, already VP8");
     video_time_base_ = st->time_base.den;
     needTranscoding_ = false;
@@ -111,12 +110,12 @@ int ExternalInput::init() {
     om.processorType = PACKAGE_ONLY;
     om.rtpVideoInfo.PT = VP8_90000_PT;
     if (audio_st) {
-      if (audio_st->codec->codec_id == AV_CODEC_ID_PCM_MULAW) {
+      if (audio_st->codecpar->codec_id == AV_CODEC_ID_PCM_MULAW) {
         ELOG_DEBUG("PCM U8");
         om.audioCodec.sampleRate = 8000;
         om.audioCodec.codec = AUDIO_CODEC_PCM_U8;
         om.rtpAudioInfo.PT = PCMU_8000_PT;
-      } else if (audio_st->codec->codec_id == AV_CODEC_ID_OPUS) {
+      } else if (audio_st->codecpar->codec_id == AV_CODEC_ID_OPUS) {
         ELOG_DEBUG("OPUS");
         om.audioCodec.sampleRate = 48000;
         om.audioCodec.codec = AUDIO_CODEC_OPUS;
@@ -127,9 +126,32 @@ int ExternalInput::init() {
     op_->init(om, this);
   } else {
     needTranscoding_ = true;
-    inCodec_.initDecoder(st->codec);
+    // FFmpeg 5/6/6.1 compatible: build decoder context from AVStream->codecpar (local ctx)
+    AVCodecParameters* par = st->codecpar;
+    const AVCodec* dec = avcodec_find_decoder(par->codec_id);
+    if (!dec) {
+      ELOG_ERROR("No decoder found for codec_id=%d", par->codec_id);
+      return -1;
+    }
+    AVCodecContext* video_dec_ctx = avcodec_alloc_context3(dec);
+    if (!video_dec_ctx) {
+      ELOG_ERROR("Failed to allocate AVCodecContext");
+      return -1;
+    }
+    if (avcodec_parameters_to_context(video_dec_ctx, par) < 0) {
+      ELOG_ERROR("avcodec_parameters_to_context failed");
+      avcodec_free_context(&video_dec_ctx);
+      return -1;
+    }
+    if (avcodec_open2(video_dec_ctx, dec, nullptr) < 0) {
+      ELOG_ERROR("avcodec_open2 failed");
+      avcodec_free_context(&video_dec_ctx);
+      return -1;
+    }
+    inCodec_.initDecoder(video_dec_ctx);
+    avcodec_free_context(&video_dec_ctx);
 
-    bufflen_ = st->codec->width * st->codec->height * 3 / 2;
+    bufflen_ = par->width * par->height * 3 / 2;
     decodedBuffer_.reset((unsigned char*) malloc(bufflen_));
 
 
@@ -137,8 +159,8 @@ int ExternalInput::init() {
     om.videoCodec.codec = VIDEO_CODEC_VP8;
     om.rtpVideoInfo.PT = VP8_90000_PT;
     om.videoCodec.bitRate = 1000000;
-    om.videoCodec.width = st->codec->width;
-    om.videoCodec.height = st->codec->height;
+    om.videoCodec.width = par->width;
+    om.videoCodec.height = par->height;
     om.videoCodec.frameRate = 20;
     om.hasVideo = true;
 
@@ -284,7 +306,7 @@ void ExternalInput::receiveLoop() {
         }
       }
     }
-    av_free_packet(&orig_pkt);
+    av_packet_unref(&orig_pkt);
   }
   ELOG_DEBUG("Ended stream to play %s", url_.c_str());
   running_ = false;

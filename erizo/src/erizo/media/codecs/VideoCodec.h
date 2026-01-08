@@ -42,7 +42,7 @@ class VideoEncoder {
   void maybeSwapContext();
 
  private:
-  AVCodec* vCoder;
+  const AVCodec* vCoder;
   AVCodecContext* coder_context_, *next_coder_context_;
   AVFrame* cPicture;
   bool keyframe_requested_;
@@ -64,7 +64,7 @@ class VideoDecoder {
   int closeDecoder();
 
  private:
-  AVCodec* vDecoder;
+  const AVCodec* vDecoder;
   bool initWithContext_;
   AVCodecContext* vDecoderContext;
   AVFrame* dPicture;
