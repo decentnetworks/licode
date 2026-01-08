@@ -15,4 +15,7 @@ cp $ROOT/nuve/nuveClient/dist/nuve.js $EXTRAS/basic_example/
 
 nvm use
 cd $EXTRAS/basic_example
-node basicServer.js &
+# Start Basic Example Server with PM2
+echo $ROOT/node_modules/.bin/pm2 start basicServer.js --cwd .
+$ROOT/node_modules/.bin/pm2 start basicServer.js --cwd .
+#node basicServer.js &

@@ -13,6 +13,9 @@ NVM_CHECK="$LICODE_ROOT"/scripts/checkNvm.sh
 
 cd $ROOT/erizoController
 nvm use
-node erizoController.js &
+# Start Erizo Controller with PM2
+echo $ROOT/node_modules/.bin/pm2 start nuve.js --cwd .
+$ROOT/node_modules/.bin/pm2 start erizoController.js --cwd .
+#node erizoController.js &
 
 cd $CURRENT_DIR

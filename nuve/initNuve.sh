@@ -13,6 +13,9 @@ CURRENT_DIR=`pwd`
 
 cd $PATHNAME/nuveAPI
 
-node nuve.js &
+# Start Nuve with PM2
+echo $ROOT/node_modules/.bin/pm2 start nuve.js --cwd .
+$ROOT/node_modules/.bin/pm2 start nuve.js --cwd .
+#node nuve.js &
 
 cd $CURRENT_DIR
