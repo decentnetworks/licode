@@ -27,7 +27,7 @@ config.nuve.dataBaseURL = "mongodb://localhost/nuvedb"; // default value: "mongo
 config.nuve.dataBaseName = 'nuvedb'; // default value: 'nuvedb'
 config.nuve.superserviceID = '_auto_generated_ID_'; // default value: ''
 config.nuve.superserviceKey = '_auto_generated_KEY_'; // default value: ''
-config.nuve.testErizoController = 'localhost:8080'; // default value: 'localhost:8080'
+config.nuve.testErizoController = 'la.beagle.chat:443'; // default value: 'localhost:8080'
 // Nuve Cloud Handler policies are in nuve/nuveAPI/ch_policies/ folder
 config.nuve.cloudHandlerPolicy = 'default_policy.js'; // default value: 'default_policy.js'
 config.nuve.port = 3000; // default value: 3000
@@ -51,7 +51,11 @@ config.erizoController = {};
 //     "credential": password,
 //     "url": url
 // }
-config.erizoController.iceServers = [{'url': 'stun:stun.l.google.com:19302'}]; // default value: [{'url': 'stun:stun.l.google.com:19302'}]
+config.erizoController.iceServers = [
+  { url: 'stun:tokyo.fi.chat:3478' },
+  { url: 'turn:tokyo.fi.chat:3478', username: 'allcom', credential: 'allcompass' },
+  { url: 'turns:tokyo.fi.chat:5349', username: 'allcom', credential: 'allcompass' }
+]; // default value: [{'url': 'stun:stun.l.google.com:19302'}]
 
 // Default and max video bandwidth parameters to be used by clients for both published and subscribed streams
 config.erizoController.defaultVideoBW = 300; //default value: 300
@@ -59,15 +63,15 @@ config.erizoController.maxVideoBW = 300; //default value: 300
 
 // Public erizoController IP for websockets (useful when behind NATs)
 // Use '' to automatically get IP from the interface
-config.erizoController.publicIP = ''; //default value: ''
+config.erizoController.publicIP = '38.14.254.188'; //default value: ''
 config.erizoController.networkinterface = ''; //default value: ''
 
 // This configuration is used by the clients to reach erizoController
 // Use '' to use the public IP address instead of a hostname
-config.erizoController.hostname = ''; //default value: ''
-config.erizoController.port = 8080; //default value: 8080
+config.erizoController.hostname = 'la.beagle.chat'; //default value: ''
+config.erizoController.port = 443; //default value: 8080
 // Use true if clients communicate with erizoController over SSL
-config.erizoController.ssl = false; //default value: false
+config.erizoController.ssl = true; //default value: false
 
 // This configuration is used by erizoController server to listen for connections
 // Use true if erizoController listens in HTTPS.
@@ -128,7 +132,7 @@ config.erizoAgent.prerunProcesses = 1; // default value: 1
 
 // Public erizoAgent IP for ICE candidates (useful when behind NATs)
 // Use '' to automatically get IP from the interface
-config.erizoAgent.publicIP = ''; //default value: ''
+config.erizoAgent.publicIP = '38.14.254.188'; //default value: ''
 config.erizoAgent.networkinterface = ''; //default value: ''
 
 // Use the name of the inferface you want to bind for ICE candidates
@@ -174,22 +178,22 @@ config.erizo.checkUptimeInterval = 1800;
 //STUN server IP address and port to be used by the server.
 //if '' is used, the address is discovered locally
 //Please note this is only needed if your server does not have a public IP
-config.erizo.stunserver = ''; // default value: ''
-config.erizo.stunport = 0; // default value: 0
+config.erizo.stunserver = 'tokyo.fi.chat'; // default value: ''
+config.erizo.stunport = 5349; // default value: 0
 
 //TURN server IP address and port to be used by the server.
 //Please note this is not needed in most cases, setting TURN in erizoController for the clients
 //is the recommended configuration
 //if '' is used, no relay for the server is used
-config.erizo.turnserver = ''; // default value: ''
-config.erizo.turnport = 0; // default value: 0
-config.erizo.turnusername = '';
-config.erizo.turnpass = '';
+config.erizo.turnserver = 'tokyo.fi.chat'; // default value: ''
+config.erizo.turnport = 5349; // default value: 0
+config.erizo.turnusername = 'allcom';
+config.erizo.turnpass = 'allcompass';
 config.erizo.networkinterface = ''; //default value: ''
 
 //note, this won't work with all versions of libnice. With 0 all the available ports are used
-config.erizo.minport = 0; // default value: 0
-config.erizo.maxport = 0; // default value: 0
+config.erizo.minport = 30000; // default value: 0
+config.erizo.maxport = 30050; // default value: 0
 
 config.erizo.useConnectionQualityCheck = true; // default value: false
 
@@ -214,7 +218,7 @@ config.rov.statsPrefix = "licode_";
 config.basicExample = {};
 config.basicExample.port = 3001;  // default value: 3001
 config.basicExample.tlsPort = 3004; // default value: 3004
-config.basicExample.nuveUrl = 'http://localhost:3000/';
+config.basicExample.nuveUrl = 'https://la.beagle.chat/nuve/';
 config.basicExample.logger = {};
 config.basicExample.logger.configFile = './log4js_configuration.json'; // default value: "./log4js_configuration.json"
 
