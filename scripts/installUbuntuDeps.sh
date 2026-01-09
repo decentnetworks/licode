@@ -288,7 +288,7 @@ mkdir -p $PREFIX_DIR
 
 check_sudo
 install_apt_deps
-#install_mongodb
+install_mongodb
 install_conan
 check_proxy
 install_openssl
