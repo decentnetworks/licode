@@ -11,7 +11,7 @@ project (WEBRTC)
 
 set (WEBRTC_SOURCE ${CMAKE_CURRENT_SOURCE_DIR})
 
-set(CMAKE_CXX_FLAGS "-g -Wall -std=c++17 -DWEBRTC_POSIX")
+set(CMAKE_CXX_FLAGS "-g -Wall -std=c++17 -DWEBRTC_POSIX -include cstdint")
 
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fno-stack-protector -DWEBRTC_MAC")
