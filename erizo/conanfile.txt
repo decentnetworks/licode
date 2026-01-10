@@ -3,7 +3,7 @@ libiconv/1.17
 boost/1.84.0
 apr/1.7.0
 apr-util/1.6.1
-abseil/20211102.0
+abseil/20230125.3
 
 IncludePathsGenerator/0.1@lynckia/includes
 
@@ -14,4 +14,3 @@ cmake_paths
 IncludePathsGenerator
 
 [options]
-
