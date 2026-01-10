@@ -17,6 +17,8 @@
 
 #include "webrtc/rtc_base/system/rtc_export.h"
 
+#include <cstdint>
+
 namespace rtc {
 
 class Base64 {

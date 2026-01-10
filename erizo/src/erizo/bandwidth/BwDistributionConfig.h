@@ -2,6 +2,7 @@
 #define ERIZO_SRC_ERIZO_BANDWIDTH_BWDISTRIBUTIONCONFIG_H_
 
 #include <vector>
+#include <cstdint>
 #include <string>
 
 namespace erizo {
@@ -57,4 +58,3 @@ class BwDistributionConfig {
 
 }  // namespace erizo
 #endif  // ERIZO_SRC_ERIZO_BANDWIDTH_BWDISTRIBUTIONCONFIG_H_
-

@@ -3,6 +3,8 @@
 
 #include "./logger.h"
 
+#include <cstdint>
+
 namespace erizo {
 
 enum VP8FrameTypes {
