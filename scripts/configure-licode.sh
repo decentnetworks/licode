@@ -99,33 +99,37 @@ def sub(pattern, repl):
     text, _ = re.subn(pattern, repl, text)
 
 sub(r"(config\.erizoController\.publicIP\s*=\s*)'[^']*'",
-    r"\1'{}'".format(ip))
+    r"\g<1>'{}'".format(ip))
 sub(r"(config\.erizoAgent\.publicIP\s*=\s*)'[^']*'",
-    r"\1'{}'".format(ip))
+    r"\g<1>'{}'".format(ip))
 sub(r"(config\.erizoController\.hostname\s*=\s*)'[^']*'",
-    r"\1'{}'".format(domain))
+    r"\g<1>'{}'".format(domain))
+sub(r"(config\.erizoController\.port\s*=\s*)\d+",
+    r"\g<1>443")
+sub(r"(config\.erizoController\.ssl\s*=\s*)\w+",
+    r"\g<1>true")
 
 sub(r"(config\.erizo\.stunserver\s*=\s*)'[^']*'",
-    r"\1'{}'".format(stun_host))
+    r"\g<1>'{}'".format(stun_host))
 sub(r"(config\.erizo\.stunport\s*=\s*)\d+",
-    r"\1{}".format(stun_port))
+    r"\g<1>{}".format(stun_port))
 sub(r"(config\.erizo\.turnserver\s*=\s*)'[^']*'",
-    r"\1'{}'".format(turn_host))
+    r"\g<1>'{}'".format(turn_host))
 sub(r"(config\.erizo\.turnport\s*=\s*)\d+",
-    r"\1{}".format(turn_port))
+    r"\g<1>{}".format(turn_port))
 sub(r"(config\.erizo\.turnusername\s*=\s*)'[^']*'",
-    r"\1'{}'".format(turn_user))
+    r"\g<1>'{}'".format(turn_user))
 sub(r"(config\.erizo\.turnpass\s*=\s*)'[^']*'",
-    r"\1'{}'".format(turn_pass))
+    r"\g<1>'{}'".format(turn_pass))
 
 sub(r"(\{'url':\s*'stun:)[^']*('})",
-    r"\1{}:{}\2".format(stun_host, stun_port))
+    r"\g<1>{}:{}\2".format(stun_host, stun_port))
 sub(r"(\{'url':\s*'turn:)[^']*(')",
-    r"\1{}:{}\2".format(turn_host, turn_port))
+    r"\g<1>{}:{}\2".format(turn_host, turn_port))
 sub(r"('username'\s*:\s*)'[^']*'",
-    r"\1'{}'".format(turn_user))
+    r"\g<1>'{}'".format(turn_user))
 sub(r"('credential'\s*:\s*)'[^']*'",
-    r"\1'{}'".format(turn_pass))
+    r"\g<1>'{}'".format(turn_pass))
 
 Path(path).write_text(text)
 print(f"Updated {path}")
