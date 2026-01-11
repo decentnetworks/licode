@@ -9,6 +9,7 @@ let localStream;
 let room;
 let localStreamIndex = 0;
 const localStreams = new Map();
+const recordingIds = new Map();
 const configFlags = {
   noStart: false, // disable start button when only subscribe
   forceStart: false, // force start button in all cases
@@ -17,12 +18,12 @@ const configFlags = {
   singlePC: true,
   type: 'erizo', // room type
   onlyAudio: false,
-  mediaConfiguration: 'default',
   onlySubscribe: false,
   onlyPublish: false,
   autoSubscribe: false,
   simulcast: false,
   unencrypted: false,
+  mediaConfiguration: 'VP8_AND_OPUS',
 };
 
 const createSubscriberContainer = (stream) => {
@@ -75,27 +76,56 @@ const createPublisherContainer = (stream, index) => {
   };
 
   const stopRecordButton = document.createElement('button');
-  stopRecordButton.textContent = 'Stop record';
+  stopRecordButton.textContent = 'Stop all';
   stopRecordButton.setAttribute('style', 'float:left;');
   stopRecordButton.setAttribute('hidden', 'true');
 
   const recordButton = document.createElement('button');
-  recordButton.textContent = 'Record';
+  recordButton.textContent = 'Record all';
   recordButton.setAttribute('style', 'float:left;');
 
-  let recordId;
-  recordButton.onclick = () => {
-    console.log(stream);
-    room.startRecording(stream, (id) => {
-      recordId = id;
+  const startRecordingStream = (streamInput) => {
+    if (!room || !streamInput || !streamInput.getID || !streamInput.getID()) {
+      return;
+    }
+    const streamId = streamInput.getID();
+    if (recordingIds.has(streamId)) {
+      return;
+    }
+    room.startRecording(streamInput, (id, error) => {
+      if (!id) {
+        console.error('Recording failed', error);
+        return;
+      }
+      recordingIds.set(streamId, id);
     });
+  };
+
+  const startRecordingAll = () => {
+    localStreams.forEach((localStreamValue) => startRecordingStream(localStreamValue));
+    if (room && room.remoteStreams && room.remoteStreams.forEach) {
+      room.remoteStreams.forEach((remoteStream) => startRecordingStream(remoteStream));
+    }
+  };
+
+  const stopRecordingAll = () => {
+    if (!room) {
+      return;
+    }
+    recordingIds.forEach((recordingId) => {
+      room.stopRecording(recordingId);
+    });
+    recordingIds.clear();
+  };
+
+  recordButton.onclick = () => {
+    startRecordingAll();
     recordButton.hidden = true;
     stopRecordButton.hidden = false;
   };
 
   stopRecordButton.onclick = () => {
-    console.log(stream);
-    room.stopRecording(recordId);
+    stopRecordingAll();
     recordButton.hidden = false;
     stopRecordButton.hidden = true;
   };

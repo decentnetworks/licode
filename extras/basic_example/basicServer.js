@@ -77,8 +77,9 @@ N.API.init(config.nuve.superserviceID, config.nuve.superserviceKey, config.basic
 
 let defaultRoom;
 const defaultRoomName = 'basicExampleRoom';
+const defaultMediaConfiguration = 'VP8_AND_OPUS';
 
-const getOrCreateRoom = (name, type = 'erizo', mediaConfiguration = 'default',
+const getOrCreateRoom = (name, type = 'erizo', mediaConfiguration = defaultMediaConfiguration,
   callback = () => {}) => {
   if (name === defaultRoomName && defaultRoom) {
     callback(defaultRoom);
