@@ -31,3 +31,18 @@ There are two supported client-side flows:
 
 Relevant client API calls are documented in `doc/client_api.md` under
 "Start Recording", "Stop Recording", and "Playing recorded streams".
+
+### Replaying all recordings for a session
+Licode does not provide a single API call to replay a full session. You need to
+publish one external stream per recording id that you stored when recording.
+
+Example (client-side):
+```js
+// recordingIds is a list you stored server-side or client-side for the session.
+const recordingIds = ['rec1', 'rec2', 'rec3'];
+
+recordingIds.forEach((id) => {
+  const stream = Erizo.Stream({ audio: true, video: true, recording: id });
+  room.publish(stream);
+});
+```
