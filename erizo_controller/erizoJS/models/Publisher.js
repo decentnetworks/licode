@@ -110,6 +110,9 @@ class Source extends NodeClass {
     externalOutput.init();
     this.muxer.addExternalOutput(externalOutput, url);
     this.externalOutputs[url] = externalOutput;
+    if (hasVideo) {
+      this.requestVideoKeyFrame();
+    }
   }
 
   removeExternalOutput(url) {

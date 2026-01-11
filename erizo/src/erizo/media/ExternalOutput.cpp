@@ -4,6 +4,7 @@
 
 #include <string>
 #include <cstring>
+#include <cerrno>
 
 #include "webrtc/api/rtp_parameters.h"
 
@@ -226,6 +227,11 @@ void ExternalOutput::writeVideoData(char* buf, int len) {
     first_video_timestamp_ = head->getTimestamp();
   }
   auto map_iterator = video_maps_.find(head->getPayloadType());
+  if (map_iterator == video_maps_.end() && video_maps_.size() == 1) {
+    map_iterator = video_maps_.begin();
+    ELOG_WARN("Video payload type %d not found in RTP maps, falling back to %s",
+              head->getPayloadType(), map_iterator->second.encoding_name.c_str());
+  }
   if (map_iterator != video_maps_.end()) {
     updateVideoCodec(map_iterator->second);
     if (map_iterator->second.encoding_name == "VP8" || map_iterator->second.encoding_name == "H264") {
@@ -239,6 +245,8 @@ void ExternalOutput::updateAudioCodec(RtpMap map) {
     return;
   }
   audio_map_ = map;
+  ELOG_INFO("Recording audio codec %s, payload %u",
+            map.encoding_name.c_str(), map.payload_type);
   if (map.encoding_name == "opus") {
     audio_codec_ = AV_CODEC_ID_OPUS;
   } else if (map.encoding_name == "PCMU") {
@@ -251,6 +259,8 @@ void ExternalOutput::updateVideoCodec(RtpMap map) {
     return;
   }
   video_map_ = map;
+  ELOG_INFO("Recording video codec %s, payload %u",
+            map.encoding_name.c_str(), map.payload_type);
   if (map.encoding_name == "VP8") {
     depacketizer_.reset(new Vp8Depacketizer());
     video_codec_ = AV_CODEC_ID_VP8;
@@ -454,12 +464,13 @@ bool ExternalOutput::initContext() {
 
   if ( init_audio || init_video ) {
     if (avio_open(&context_->pb, output_url_.c_str(), AVIO_FLAG_WRITE) < 0) {
-      ELOG_ERROR("Error opening output file");
+      ELOG_ERROR("Error opening output file: %s", strerror(errno));
       return false;
     }
+    ELOG_INFO("Opened output file %s", output_url_.c_str());
 
     if (avformat_write_header(context_, nullptr) < 0) {
-      ELOG_ERROR("Error writing header");
+      ELOG_ERROR("Error writing header: %s", strerror(errno));
       return false;
     }
   }
