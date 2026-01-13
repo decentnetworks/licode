@@ -46,3 +46,12 @@ recordingIds.forEach((id) => {
   room.publish(stream);
 });
 ```
+### Convert mkv to mp4
+```
+ffmpeg -i input.mkv -c copy output.mp4
+ffmpeg -i input.mkv -c:v libx264 -preset slow -crf 18 -c:a aac -b:a 192k output.mp4
+for f in *.mkv; do
+  ffmpeg -i "$f" -c copy "${f%.mkv}.mp4"
+done
+
+```
